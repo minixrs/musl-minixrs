@@ -1,78 +1,67 @@
 #define __SYSCALL_LL_E(x) (x)
 #define __SYSCALL_LL_O(x) (x)
 
-#define __asm_syscall(...) do { \
-	__asm__ __volatile__ ( "svc 0" \
-	: "=r"(x0) : __VA_ARGS__ : "memory", "cc"); \
-	return x0; \
-	} while (0)
+/*
+ * minix.rs is not Linux: there is no kernel entry point that decodes a Linux
+ * syscall number. The kernel's only `svc #0` ABI is the MINIX IPC trap
+ * (x0 = endpoint, x1 = primitive, x2 = &message), and every OS service lives
+ * in a user-space server reached by message passing.
+ *
+ * So nothing in this header traps. Each __syscallN funnels into
+ * __minixrs_syscall (src/minixrs/_syscall.c), which translates the handful of
+ * Linux numbers musl actually emits into server round-trips. The trap itself
+ * is __minixrs_ipc (src/minixrs/ipc.c).
+ *
+ * Keeping the __syscallN shape rather than rewriting musl's call sites is the
+ * whole point: it is the one seam that lets the other ~1900 source files stay
+ * byte-identical to upstream.
+ *
+ * src/internal/syscall_ret.c is deliberately untouched. It treats a return in
+ * [-4095, -1] as an errno, and minix.rs errno magnitudes are 1..=40 and >=200
+ * (phase-5 decision D7), so every one of them lands inside that window.
+ */
+hidden long __minixrs_syscall(long n, long a, long b, long c, long d, long e,
+                              long f);
 
 static inline long __syscall0(long n)
 {
-	register long x8 __asm__("x8") = n;
-	register long x0 __asm__("x0");
-	__asm_syscall("r"(x8));
+	return __minixrs_syscall(n, 0, 0, 0, 0, 0, 0);
 }
 
 static inline long __syscall1(long n, long a)
 {
-	register long x8 __asm__("x8") = n;
-	register long x0 __asm__("x0") = a;
-	__asm_syscall("r"(x8), "0"(x0));
+	return __minixrs_syscall(n, a, 0, 0, 0, 0, 0);
 }
 
 static inline long __syscall2(long n, long a, long b)
 {
-	register long x8 __asm__("x8") = n;
-	register long x0 __asm__("x0") = a;
-	register long x1 __asm__("x1") = b;
-	__asm_syscall("r"(x8), "0"(x0), "r"(x1));
+	return __minixrs_syscall(n, a, b, 0, 0, 0, 0);
 }
 
 static inline long __syscall3(long n, long a, long b, long c)
 {
-	register long x8 __asm__("x8") = n;
-	register long x0 __asm__("x0") = a;
-	register long x1 __asm__("x1") = b;
-	register long x2 __asm__("x2") = c;
-	__asm_syscall("r"(x8), "0"(x0), "r"(x1), "r"(x2));
+	return __minixrs_syscall(n, a, b, c, 0, 0, 0);
 }
 
 static inline long __syscall4(long n, long a, long b, long c, long d)
 {
-	register long x8 __asm__("x8") = n;
-	register long x0 __asm__("x0") = a;
-	register long x1 __asm__("x1") = b;
-	register long x2 __asm__("x2") = c;
-	register long x3 __asm__("x3") = d;
-	__asm_syscall("r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3));
+	return __minixrs_syscall(n, a, b, c, d, 0, 0);
 }
 
 static inline long __syscall5(long n, long a, long b, long c, long d, long e)
 {
-	register long x8 __asm__("x8") = n;
-	register long x0 __asm__("x0") = a;
-	register long x1 __asm__("x1") = b;
-	register long x2 __asm__("x2") = c;
-	register long x3 __asm__("x3") = d;
-	register long x4 __asm__("x4") = e;
-	__asm_syscall("r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4));
+	return __minixrs_syscall(n, a, b, c, d, e, 0);
 }
 
 static inline long __syscall6(long n, long a, long b, long c, long d, long e, long f)
 {
-	register long x8 __asm__("x8") = n;
-	register long x0 __asm__("x0") = a;
-	register long x1 __asm__("x1") = b;
-	register long x2 __asm__("x2") = c;
-	register long x3 __asm__("x3") = d;
-	register long x4 __asm__("x4") = e;
-	register long x5 __asm__("x5") = f;
-	__asm_syscall("r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4), "r"(x5));
+	return __minixrs_syscall(n, a, b, c, d, e, f);
 }
 
-#define VDSO_USEFUL
-#define VDSO_CGT_SYM "__kernel_clock_gettime"
-#define VDSO_CGT_VER "LINUX_2.6.39"
+/*
+ * No VDSO. minix.rs maps none, so VDSO_USEFUL / VDSO_CGT_SYM / VDSO_CGT_VER are
+ * deliberately absent: defining them would make clock_gettime search for a
+ * symbol in an object that does not exist.
+ */
 
 #define IPC_64 0
