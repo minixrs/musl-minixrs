@@ -40,4 +40,17 @@ hidden long __minixrs_syscall(long n, long a, long b, long c, long d, long e,
  */
 #define PM_EXIT_STATUS_OFF 0
 
+/*
+ * Payload offsets of VM_BRK, VM_MMAP and VM_MUNMAP, for the same reason: each
+ * is documented in its callnr.rs doc comment (slices 3.5, 3.6) rather than
+ * named as a constant. VM_BRK's request break and its reply break share 0..8
+ * (u64); VM_MMAP's request length and its reply base share 0..8 (u64);
+ * VM_MUNMAP takes the base in 0..8 and the length in 8..16 (u64 each).
+ */
+#define VM_BRK_ADDR_OFF    0
+#define VM_MMAP_LEN_OFF    0
+#define VM_MMAP_ADDR_OFF   0
+#define VM_MUNMAP_ADDR_OFF 0
+#define VM_MUNMAP_LEN_OFF  8
+
 #endif
